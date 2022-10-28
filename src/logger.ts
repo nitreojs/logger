@@ -3,11 +3,7 @@ import { AnyColor } from './types/types'
 
 import { isPlainObject } from './utils'
 
-interface LogUpdateParams {
-  clearLastLine?: boolean
-}
-
-interface LogFunction {
+interface LoggerInstance {
   (...data: any[]): void
 
   update(params: LogUpdateParams, ...data: any[]): void
@@ -18,8 +14,40 @@ interface LogFunction {
   warn(...data: any[]): void
 }
 
+interface LogUpdateParams {
+  clearLastLine?: boolean
+}
+
 export class Logger {
-  /** Colorize given `data` with given `colors` */
+  /**
+   * Logs data using `console.log`
+   * @param data Data to log
+   */
+  public static log(...data: any[]) {
+    console.log(...data)
+  }
+
+  /**
+   * Logs data to `stderr` via `console.error`
+   * @param data Data to log
+   */
+  public static error(...data: any[]) {
+    console.error(...data)
+  }
+
+  /**
+   * Logs data via `console.warn`
+   * @param data Data to log
+   */
+  public static warn(...data: any[]) {
+    console.warn(...data)
+  }
+
+  /**
+   * Colorizes given `text` with given `colors`
+   * @param text Text to colorize
+   * @param colors Text colors
+   */
   public static color(text: string, ...colors: AnyColor[]) {
     const startCodes = colors
     const endCodes = []
@@ -67,7 +95,7 @@ export class Logger {
   /**
    * Generates current logger prefix
    * @param {string} name Prefix name
-   * @param {AnyColor} colors Colors
+   * @param {AnyColor} colors Prefix colors
    */
   public static prefix(name: string, ...colors: AnyColor[]) {
     return Logger.color(name, ...colors, TextStyle.Bold)
@@ -76,12 +104,12 @@ export class Logger {
   /**
    * Initializes logger function
    * @param {string} name Logger's name
-   * @param {AnyColor} colors Colors
+   * @param {AnyColor} colors Name colors
    */
   public static create(name: string, ...colors: AnyColor[]) {
     const prefix = Logger.prefix(name, ...colors)
 
-    const fn = (...data: any[]) => console.log(prefix, ...data)
+    const fn = (...data: any[]) => Logger.log(prefix, ...data)
 
     fn.update = (...data: any[]) => {
       if (isPlainObject(data[0])) {
@@ -95,9 +123,9 @@ export class Logger {
       }
     }
 
-    fn.error = (...data: any[]) => console.error(prefix, ...data)
-    fn.warn = (...data: any[]) => console.warn(prefix, ...data)
+    fn.error = (...data: any[]) => Logger.error(prefix, ...data)
+    fn.warn = (...data: any[]) => Logger.warn(prefix, ...data)
 
-    return fn as LogFunction
+    return fn as LoggerInstance
   }
 }
