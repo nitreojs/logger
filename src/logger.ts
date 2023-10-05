@@ -214,7 +214,21 @@ export class Logger {
     return fn as LoggerInstance
   }
 
-  // TODO: refactor this wtf
+  private static stringify(...data: any[]) {
+    return data.map((v) => {
+      if (typeof v === 'object' && v !== null) {
+        try {
+          return JSON.stringify(v)
+        } catch (error) {
+          return v.toString()
+        }
+      }
+
+      return v.toString()
+    })
+  }
+
+  // TODO: refactor this shit
   private static logToFile(name: string, type: LogLevel, ...data: string[]) {
     if (!Logger.config.isFileLoggingEnabled()) {
       return
@@ -230,8 +244,9 @@ export class Logger {
     const prefix = prefixesByType[type]
 
     const timestamp = new Date().toISOString()
+    const serialized = Logger.stringify(...data)
 
-    const log = data.map(v => `${timestamp} [${name}] ${prefix ? `${prefix} ` : ''}${v}`).join('\n')
+    const log = `${timestamp} [${name}] ${prefix ? `${prefix} ` : ''}${serialized.join(' ')}`
 
     appendFile(Logger.config.getFilePath()!, log + '\n')
   }
