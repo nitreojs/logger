@@ -49,3 +49,11 @@ export enum TextStyle {
   Strikethrough = 9,
   StrikethroughEnd = 29
 }
+
+export enum LogLevel {
+  Generic,
+  Info,
+  Debug,
+  Warn,
+  Error
+}

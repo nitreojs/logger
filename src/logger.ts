@@ -1,8 +1,12 @@
-import { BackgroundColor, Color, TextStyle } from './types/enums'
+import { appendFile } from 'node:fs/promises'
+
+import { BackgroundColor, Color, LogLevel, TextStyle } from './types/enums'
 import { AnyColor } from './types/types'
 import { RGBColor } from './types/interfaces'
 
 import { getFixedColor, isPlainObject } from './utils'
+
+import { LoggerConfig } from './config'
 
 interface LoggerInstance {
   (...data: any[]): void
@@ -11,8 +15,9 @@ interface LoggerInstance {
   update(...data: any[]): void
 
   error(...data: any[]): void
-
   warn(...data: any[]): void
+  info(...data: any[]): void
+  debug(...data: any[]): void
 }
 
 interface LogUpdateParams {
@@ -20,6 +25,8 @@ interface LogUpdateParams {
 }
 
 export class Logger {
+  public static config = new LoggerConfig()
+
   /**
    * Logs data using `console.log`
    * @param data Data to log
@@ -43,6 +50,23 @@ export class Logger {
   public static warn(...data: any[]) {
     console.warn(...data)
   }
+
+  /**
+   * Logs data via `console.info`
+   * @param data Data to log
+   */
+  public static info(...data: any[]) {
+    console.info(...data)
+  }
+
+  /**
+   * Logs data via `console.debug`
+   * @param data Data to log
+   */
+  public static debug(...data: any[]) {
+    console.debug(...data)
+  }
+
 
   /**
    * Colorizes given `text` with given `colors`
@@ -129,23 +153,86 @@ export class Logger {
       prefix = Logger.prefix(name, ...colors)
     }
 
-    const fn = (...data: any[]) => Logger.log(prefix, ...data)
+    const fn = (...data: any[]) => {
+      Logger.log(prefix, ...data)
+      Logger.logToFile(name, LogLevel.Generic, ...data)
+    }
 
     fn.update = (...data: any[]) => {
       if (isPlainObject(data[0])) {
         const params: LogUpdateParams = data[0]
-        const text = `${prefix} ${data.slice(1).map(value => value.toString()).join(' ')}`
+        const prefixless = data.slice(1).map(value => value.toString()).join(' ')
+        const text = `${prefix} ${prefixless}`
 
         Logger.updateLog(text, params)
+        Logger.logToFile(name, LogLevel.Generic, prefixless)
       } else {
-        const text = `${prefix} ${data.map(value => value.toString()).join(' ')}`
+        const prefixless = data.map(value => value.toString()).join(' ')
+        const text = `${prefix} ${prefixless}`
+
         Logger.updateLog(text)
+        Logger.logToFile(name, LogLevel.Generic, prefixless)
       }
     }
 
-    fn.error = (...data: any[]) => Logger.error(prefix, ...data)
-    fn.warn = (...data: any[]) => Logger.warn(prefix, ...data)
+    fn.info = (...data: any[]) => {
+      if (!Logger.config.isLogLevelSuitable(LogLevel.Info)) {
+        return
+      }
+
+      Logger.info(prefix, ...data)
+      Logger.logToFile(name, LogLevel.Info, ...data)
+    }
+
+    fn.debug = (...data: any[]) => {
+      if (!Logger.config.isLogLevelSuitable(LogLevel.Debug)) {
+        return
+      }
+
+      Logger.debug(prefix, ...data)
+      Logger.logToFile(name, LogLevel.Debug, ...data)
+    }
+
+    fn.warn = (...data: any[]) => {
+      if (!Logger.config.isLogLevelSuitable(LogLevel.Warn)) {
+        return
+      }
+
+      Logger.warn(prefix, ...data)
+      Logger.logToFile(name, LogLevel.Warn, ...data)
+    }
+
+    fn.error = (...data: any[]) => {
+      if (!Logger.config.isLogLevelSuitable(LogLevel.Error)) {
+        return
+      }
+
+      Logger.error(prefix, ...data)
+      Logger.logToFile(name, LogLevel.Error, ...data)
+    }
 
     return fn as LoggerInstance
+  }
+
+  // TODO: refactor this wtf
+  private static logToFile(name: string, type: LogLevel, ...data: string[]) {
+    if (!Logger.config.isFileLoggingEnabled()) {
+      return
+    }
+
+    const prefixesByType: Partial<Record<LogLevel, string>> = {
+      [LogLevel.Info]:  'INFO ',
+      [LogLevel.Warn]:  'WARN ',
+      [LogLevel.Debug]: 'DEBUG',
+      [LogLevel.Error]: 'ERROR'
+    }
+
+    const prefix = prefixesByType[type]
+
+    const timestamp = new Date().toISOString()
+
+    const log = data.map(v => `${timestamp} [${name}] ${prefix ? `${prefix} ` : ''}${v}`).join('\n')
+
+    appendFile(Logger.config.getFilePath()!, log + '\n')
   }
 }
