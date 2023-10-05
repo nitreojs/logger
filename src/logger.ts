@@ -1,7 +1,8 @@
 import { BackgroundColor, Color, TextStyle } from './types/enums'
 import { AnyColor } from './types/types'
+import { RGBColor } from './types/interfaces'
 
-import { isPlainObject } from './utils'
+import { getFixedColor, isPlainObject } from './utils'
 
 interface LoggerInstance {
   (...data: any[]): void
@@ -78,6 +79,18 @@ export class Logger {
   }
 
   /**
+   * Colorizes given `text` with given RGB `color`
+   * @param text Text to colorize
+   * @param color RGB color
+   */
+  public static colorByRGB(text: string, color: RGBColor) {
+    const code = `\x1b[38;2;${color.r};${color.g};${color.b}m`
+    const reset = '\x1b[0m'
+
+    return code + text + reset
+  }
+
+  /**
    * Updates last log line
    * @param {string} text New line's contexts
    * @param {LogUpdateParams} params Params
@@ -107,7 +120,14 @@ export class Logger {
    * @param {AnyColor} colors Name colors
    */
   public static create(name: string, ...colors: AnyColor[]) {
-    const prefix = Logger.prefix(name, ...colors)
+    let prefix: string
+
+    // Generate fixed color based on {@link name} if no colors provided
+    if (colors.length === 0) {
+      prefix = Logger.colorByRGB(name, getFixedColor(name))
+    } else {
+      prefix = Logger.prefix(name, ...colors)
+    }
 
     const fn = (...data: any[]) => Logger.log(prefix, ...data)
 
